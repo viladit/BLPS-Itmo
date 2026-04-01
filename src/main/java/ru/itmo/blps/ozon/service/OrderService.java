@@ -3,6 +3,8 @@ package ru.itmo.blps.ozon.service;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.function.Consumer;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.itmo.blps.ozon.dto.CancelOrderRequest;
@@ -40,7 +42,8 @@ public class OrderService {
         order.setDeliveryAddress(request.getDeliveryAddress());
         order.setCreatedAt(now);
         order.setUpdatedAt(now);
-        order.setStatus(OrderStatus.ORDER_RECEIVED);
+        order.setStatus(OrderStatus.CREATED);
+        order.setStockAvailable(null);
 
         for (OrderItemRequest itemRequest : request.getItems()) {
             OrderItem item = new OrderItem();
@@ -51,9 +54,56 @@ public class OrderService {
             order.addItem(item);
         }
 
-        moveToStatus(order, OrderStatus.ORDER_RECEIVED, OrderStatus.ORDER_CONTENTS_LOADED);
+        if (!isStockAvailable(order)) {
+            order.setStockAvailable(false);
+            order.setStatus(OrderStatus.CANCELLED);
+            order.setCancellationReason("Недостаточно товара на складе");
+            touch(order);
+            orderRepository.save(order);
+            throw new InvalidOrderStateException("Заказ отменен: недостаточно товара на складе");
+        }
+        order.setStockAvailable(true);
 
         return toResponse(orderRepository.save(order));
+    }
+
+    public OrderResponse acceptOrder(Long orderId) {
+        return updateOrderStatus(orderId, OrderStatus.CREATED, OrderStatus.ACCEPTED);
+    }
+
+    public OrderResponse packOrder(Long orderId) {
+        return updateOrderStatus(orderId, OrderStatus.ACCEPTED, OrderStatus.PACKED);
+    }
+
+    public OrderResponse handToDelivery(Long orderId, HandToDeliveryRequest request) {
+        return updateOrderStatus(orderId, OrderStatus.PACKED, OrderStatus.IN_DELIVERY, order -> {
+            Delivery delivery = order.getDelivery();
+            if (delivery == null) {
+                delivery = new Delivery();
+                order.setDelivery(delivery);
+            }
+            delivery.setCarrierName(request.getCarrierName());
+            delivery.setTrackingNumber(request.getTrackingNumber());
+            delivery.setHandedAt(now());
+        });
+    }
+
+    public OrderResponse markDelivered(Long orderId) {
+        return updateOrderStatus(orderId, OrderStatus.IN_DELIVERY, OrderStatus.DELIVERED, order -> {
+            order.getDelivery().setDeliveredAt(now());
+        });
+    }
+
+    public OrderResponse cancelOrder(Long orderId, CancelOrderRequest request) {
+        return updateOrderStatus(orderId, null, OrderStatus.CANCELLED, order -> {
+            if (order.getStatus() == OrderStatus.CANCELLED) {
+                throw new InvalidOrderStateException("Заказ уже отменен");
+            }
+            if (order.getStatus() == OrderStatus.IN_DELIVERY || order.getStatus() == OrderStatus.DELIVERED) {
+                throw new InvalidOrderStateException("Заказ нельзя отменить после передачи в доставку");
+            }
+            order.setCancellationReason(request.getReason());
+        });
     }
 
     @Transactional(readOnly = true)
@@ -68,113 +118,37 @@ public class OrderService {
                 .toList();
     }
 
-    public OrderResponse checkStock(Long orderId) {
-        Order order = findOrder(orderId);
-        moveToStatus(order, OrderStatus.ORDER_CONTENTS_LOADED, OrderStatus.STOCK_AVAILABILITY_CHECKED);
-        order.setStockAvailable(isStockAvailable(order));
-        touch(order);
-        return toResponse(orderRepository.save(order));
-    }
-
-    public OrderResponse reserveItems(Long orderId) {
-        Order order = findOrder(orderId);
-        ensureStatus(order, OrderStatus.STOCK_AVAILABILITY_CHECKED);
-        if (!Boolean.TRUE.equals(order.getStockAvailable())) {
-            throw new InvalidOrderStateException("Items cannot be reserved because stock is not available");
-        }
-        order.setStatus(OrderStatus.ITEMS_RESERVED);
-        touch(order);
-        return toResponse(orderRepository.save(order));
-    }
-
-    public OrderResponse confirmOrder(Long orderId) {
-        return updateOrderStatus(orderId, OrderStatus.ITEMS_RESERVED, OrderStatus.SELLER_CONFIRMED);
-    }
-
-    public OrderResponse createPickingTask(Long orderId) {
-        return updateOrderStatus(orderId, OrderStatus.SELLER_CONFIRMED, OrderStatus.PICKING_TASK_CREATED);
-    }
-
-    public OrderResponse markPicked(Long orderId) {
-        return updateOrderStatus(orderId, OrderStatus.PICKING_TASK_CREATED, OrderStatus.ORDER_PICKED);
-    }
-
-    public OrderResponse packOrder(Long orderId) {
-        return updateOrderStatus(orderId, OrderStatus.ORDER_PICKED, OrderStatus.ORDER_PACKED);
-    }
-
-    public OrderResponse handToDelivery(Long orderId, HandToDeliveryRequest request) {
-        Order order = findOrder(orderId);
-        moveToStatus(order, OrderStatus.ORDER_PACKED, OrderStatus.HANDED_TO_DELIVERY);
-
-        Delivery delivery = order.getDelivery();
-        if (delivery == null) {
-            delivery = new Delivery();
-            order.setDelivery(delivery);
-        }
-
-        delivery.setCarrierName(request.getCarrierName());
-        delivery.setTrackingNumber(request.getTrackingNumber());
-        delivery.setHandedAt(now());
-        touch(order);
-
-        return toResponse(orderRepository.save(order));
-    }
-
-    public OrderResponse markDelivered(Long orderId) {
-        Order order = findOrder(orderId);
-        moveToStatus(order, OrderStatus.HANDED_TO_DELIVERY, OrderStatus.DELIVERED_AND_CLOSED);
-
-        if (order.getDelivery() == null) {
-            throw new InvalidOrderStateException("Order cannot be marked as delivered without delivery information");
-        }
-
-        order.getDelivery().setDeliveredAt(now());
-        touch(order);
-
-        return toResponse(orderRepository.save(order));
-    }
-
-    public OrderResponse cancelOrder(Long orderId, CancelOrderRequest request) {
-        Order order = findOrder(orderId);
-
-        if (order.getStatus() == OrderStatus.CANCELLED) {
-            throw new InvalidOrderStateException("Order is already cancelled");
-        }
-        if (order.getStatus() == OrderStatus.HANDED_TO_DELIVERY
-                || order.getStatus() == OrderStatus.DELIVERED_AND_CLOSED) {
-            throw new InvalidOrderStateException("Order cannot be cancelled after handoff to delivery");
-        }
-
-        order.setStatus(OrderStatus.CANCELLED);
-        order.setCancellationReason(request.getReason());
-        touch(order);
-
-        return toResponse(orderRepository.save(order));
-    }
-
     private OrderResponse updateOrderStatus(Long orderId, OrderStatus expectedStatus, OrderStatus nextStatus) {
+        return updateOrderStatus(orderId, expectedStatus, nextStatus, null);
+    }
+
+    private OrderResponse updateOrderStatus(Long orderId, OrderStatus expectedStatus, OrderStatus nextStatus, Consumer<Order> additionalAction) {
         Order order = findOrder(orderId);
-        moveToStatus(order, expectedStatus, nextStatus);
+
+        if (expectedStatus != null) {
+            ensureStatus(order, expectedStatus);
+        }
+
+        if (additionalAction != null) {
+            additionalAction.accept(order);
+        }
+
+        order.setStatus(nextStatus);
         touch(order);
         return toResponse(orderRepository.save(order));
     }
 
-    private void moveToStatus(Order order, OrderStatus expectedStatus, OrderStatus nextStatus) {
-        ensureStatus(order, expectedStatus);
-        order.setStatus(nextStatus);
-    }
 
     private void ensureStatus(Order order, OrderStatus expectedStatus) {
         if (order.getStatus() != expectedStatus) {
             throw new InvalidOrderStateException(
-                    "Expected order status " + expectedStatus + " but was " + order.getStatus()
+                    "Ожидаемый статус заказа: " + expectedStatus + ", текущий статус: " + order.getStatus()
             );
         }
     }
 
     private boolean isStockAvailable(Order order) {
-        return order.getItems().stream().allMatch(item -> item.getQuantity() <= 100);
+        return order.getItems().stream().allMatch(item -> item.getQuantity() > 0);
     }
 
     private Order findOrder(Long orderId) {
