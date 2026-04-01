@@ -13,5 +13,5 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     Optional<Order> findById(Long id);
 
     @EntityGraph(attributePaths = {"items", "delivery"})
-    List<Order> findAllOrderByIdAsc();
+    List<Order> findAllByOrderByIdAsc();
 }

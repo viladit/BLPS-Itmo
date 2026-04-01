@@ -108,7 +108,7 @@ public class OrderService {
 
     @Transactional(readOnly = true)
     public List<OrderResponse> getAllOrders() {
-        return orderRepository.findAllOrderByIdAsc().stream()
+        return orderRepository.findAllByOrderByIdAsc().stream()
                 .map(this::toResponse)
                 .toList();
     }
