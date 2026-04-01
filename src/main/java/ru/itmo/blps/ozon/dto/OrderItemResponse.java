@@ -1,10 +1,12 @@
 package ru.itmo.blps.ozon.dto;
 
 import java.math.BigDecimal;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
 
-@Getter
+import lombok.*;
+
+@Data
+@Builder
+@NoArgsConstructor
 @AllArgsConstructor
 public class OrderItemResponse {
 

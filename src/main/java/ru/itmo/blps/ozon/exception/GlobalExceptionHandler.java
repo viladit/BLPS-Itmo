@@ -35,13 +35,13 @@ public class GlobalExceptionHandler {
     private ResponseEntity<ApiErrorResponse> buildResponse(HttpStatus status,
                                                            String message,
                                                            Map<String, String> validationErrors) {
-        ApiErrorResponse response = new ApiErrorResponse(
-                LocalDateTime.now(),
-                status.value(),
-                status.getReasonPhrase(),
-                message,
-                validationErrors
-        );
+        ApiErrorResponse response = ApiErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(status.value())
+                .error(status.getReasonPhrase())
+                .message(message)
+                .validationErrors(validationErrors)
+                .build();
         return ResponseEntity.status(status).body(response);
     }
 }

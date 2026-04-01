@@ -1,13 +1,12 @@
 package ru.itmo.blps.ozon.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
-@Getter
-@Setter
+@Data
+@Builder
 @NoArgsConstructor
+@AllArgsConstructor
 public class HandToDeliveryRequest {
 
     @NotBlank(message = "Carrier name must not be blank")

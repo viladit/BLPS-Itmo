@@ -2,11 +2,13 @@ package ru.itmo.blps.ozon.dto;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
+
+import lombok.*;
 import ru.itmo.blps.ozon.entity.OrderStatus;
 
-@Getter
+@Data
+@Builder
+@NoArgsConstructor
 @AllArgsConstructor
 public class OrderResponse {
 

@@ -2,10 +2,12 @@ package ru.itmo.blps.ozon.exception;
 
 import java.time.LocalDateTime;
 import java.util.Map;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
 
-@Getter
+import lombok.*;
+
+@Data
+@Builder
+@NoArgsConstructor
 @AllArgsConstructor
 public class ApiErrorResponse {
 

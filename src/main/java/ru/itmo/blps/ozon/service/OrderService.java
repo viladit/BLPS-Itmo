@@ -166,37 +166,37 @@ public class OrderService {
 
     private OrderResponse toResponse(Order order) {
         List<OrderItemResponse> itemResponses = order.getItems().stream()
-                .map(item -> new OrderItemResponse(
-                        item.getId(),
-                        item.getSku(),
-                        item.getProductName(),
-                        item.getQuantity(),
-                        item.getUnitPrice()
-                ))
+                .map(item -> OrderItemResponse.builder()
+                        .id(item.getId())
+                        .sku(item.getSku())
+                        .productName(item.getProductName())
+                        .quantity(item.getQuantity())
+                        .unitPrice(item.getUnitPrice())
+                        .build())
                 .toList();
 
         DeliveryResponse deliveryResponse = null;
         if (order.getDelivery() != null) {
-            deliveryResponse = new DeliveryResponse(
-                    order.getDelivery().getId(),
-                    order.getDelivery().getCarrierName(),
-                    order.getDelivery().getTrackingNumber(),
-                    order.getDelivery().getHandedAt(),
-                    order.getDelivery().getDeliveredAt()
-            );
+            deliveryResponse = DeliveryResponse.builder()
+                    .id(order.getDelivery().getId())
+                    .carrierName(order.getDelivery().getCarrierName())
+                    .trackingNumber(order.getDelivery().getTrackingNumber())
+                    .handedAt(order.getDelivery().getHandedAt())
+                    .deliveredAt(order.getDelivery().getDeliveredAt())
+                    .build();
         }
 
-        return new OrderResponse(
-                order.getId(),
-                order.getCustomerName(),
-                order.getDeliveryAddress(),
-                order.getStatus(),
-                order.getStockAvailable(),
-                order.getCancellationReason(),
-                order.getCreatedAt(),
-                order.getUpdatedAt(),
-                itemResponses,
-                deliveryResponse
-        );
+        return OrderResponse.builder()
+                .id(order.getId())
+                .customerName(order.getCustomerName())
+                .deliveryAddress(order.getDeliveryAddress())
+                .status(order.getStatus())
+                .stockAvailable(order.getStockAvailable())
+                .cancellationReason(order.getCancellationReason())
+                .createdAt(order.getCreatedAt())
+                .updatedAt(order.getUpdatedAt())
+                .items(itemResponses)
+                .delivery(deliveryResponse)
+                .build();
     }
 }
