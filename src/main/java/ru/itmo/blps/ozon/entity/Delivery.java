@@ -39,4 +39,22 @@ public class Delivery {
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id", nullable = false, unique = true)
     private Order order;
+
+    public static Delivery create(String carrierName, String trackingNumber, LocalDateTime handedAt) {
+        Delivery delivery = new Delivery();
+        delivery.carrierName = carrierName;
+        delivery.trackingNumber = trackingNumber;
+        delivery.handedAt = handedAt;
+        return delivery;
+    }
+
+    public void registerHandoff(String carrierName, String trackingNumber, LocalDateTime handedAt) {
+        this.carrierName = carrierName;
+        this.trackingNumber = trackingNumber;
+        this.handedAt = handedAt;
+    }
+
+    public void markDelivered(LocalDateTime deliveredAt) {
+        this.deliveredAt = deliveredAt;
+    }
 }

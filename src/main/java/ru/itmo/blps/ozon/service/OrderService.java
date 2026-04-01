@@ -4,7 +4,7 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.function.Consumer;
-
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.itmo.blps.ozon.dto.CancelOrderRequest;
@@ -36,33 +36,27 @@ public class OrderService {
 
     public OrderResponse createOrder(CreateOrderRequest request) {
         LocalDateTime now = now();
-
-        Order order = new Order();
-        order.setCustomerName(request.getCustomerName());
-        order.setDeliveryAddress(request.getDeliveryAddress());
-        order.setCreatedAt(now);
-        order.setUpdatedAt(now);
-        order.setStatus(OrderStatus.CREATED);
-        order.setStockAvailable(null);
+        Order order = Order.create(request.getCustomerName(), request.getDeliveryAddress(), now);
 
         for (OrderItemRequest itemRequest : request.getItems()) {
-            OrderItem item = new OrderItem();
-            item.setSku(itemRequest.getSku());
-            item.setProductName(itemRequest.getProductName());
-            item.setQuantity(itemRequest.getQuantity());
-            item.setUnitPrice(itemRequest.getUnitPrice());
+            OrderItem item = OrderItem.create(
+                    itemRequest.getSku(),
+                    itemRequest.getProductName(),
+                    itemRequest.getQuantity(),
+                    itemRequest.getUnitPrice()
+            );
             order.addItem(item);
         }
 
         if (!isStockAvailable(order)) {
-            order.setStockAvailable(false);
-            order.setStatus(OrderStatus.CANCELLED);
-            order.setCancellationReason("Недостаточно товара на складе");
-            touch(order);
+            order.markStockAvailable(false);
+            order.changeStatus(OrderStatus.CANCELLED);
+            order.changeCancellationReason("Недостаточно товара на складе");
+            order.touch(now);
             orderRepository.save(order);
             throw new InvalidOrderStateException("Заказ отменен: недостаточно товара на складе");
         }
-        order.setStockAvailable(true);
+        order.markStockAvailable(true);
 
         return toResponse(orderRepository.save(order));
     }
@@ -79,18 +73,20 @@ public class OrderService {
         return updateOrderStatus(orderId, OrderStatus.PACKED, OrderStatus.IN_DELIVERY, order -> {
             Delivery delivery = order.getDelivery();
             if (delivery == null) {
-                delivery = new Delivery();
+                delivery = Delivery.create(request.getCarrierName(), request.getTrackingNumber(), now());
                 order.setDelivery(delivery);
+            } else {
+                delivery.registerHandoff(request.getCarrierName(), request.getTrackingNumber(), now());
             }
-            delivery.setCarrierName(request.getCarrierName());
-            delivery.setTrackingNumber(request.getTrackingNumber());
-            delivery.setHandedAt(now());
         });
     }
 
     public OrderResponse markDelivered(Long orderId) {
         return updateOrderStatus(orderId, OrderStatus.IN_DELIVERY, OrderStatus.DELIVERED, order -> {
-            order.getDelivery().setDeliveredAt(now());
+            if (order.getDelivery() == null) {
+                throw new InvalidOrderStateException("Нельзя завершить доставку без информации о передаче в доставку");
+            }
+            order.getDelivery().markDelivered(now());
         });
     }
 
@@ -102,7 +98,7 @@ public class OrderService {
             if (order.getStatus() == OrderStatus.IN_DELIVERY || order.getStatus() == OrderStatus.DELIVERED) {
                 throw new InvalidOrderStateException("Заказ нельзя отменить после передачи в доставку");
             }
-            order.setCancellationReason(request.getReason());
+            order.changeCancellationReason(request.getReason());
         });
     }
 
@@ -113,7 +109,7 @@ public class OrderService {
 
     @Transactional(readOnly = true)
     public List<OrderResponse> getAllOrders() {
-        return orderRepository.findAllByOrderByIdAsc().stream()
+        return orderRepository.findAll(Sort.by(Sort.Direction.ASC, "id")).stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -133,7 +129,7 @@ public class OrderService {
             additionalAction.accept(order);
         }
 
-        order.setStatus(nextStatus);
+        order.changeStatus(nextStatus);
         touch(order);
         return toResponse(orderRepository.save(order));
     }
@@ -157,7 +153,7 @@ public class OrderService {
     }
 
     private void touch(Order order) {
-        order.setUpdatedAt(now());
+        order.touch(now());
     }
 
     private LocalDateTime now() {

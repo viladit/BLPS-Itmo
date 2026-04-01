@@ -38,7 +38,7 @@ class OrderControllerTest {
 
     @Test
     void createOrderShouldReturnCreatedOrder() throws Exception {
-        when(orderService.createOrder(any())).thenReturn(orderResponse(OrderStatus.ORDER_CONTENTS_LOADED, null));
+        when(orderService.createOrder(any())).thenReturn(orderResponse(OrderStatus.CREATED, null));
 
         mockMvc.perform(post("/api/orders")
                         .contentType(APPLICATION_JSON)
@@ -58,18 +58,18 @@ class OrderControllerTest {
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", "/api/orders/1"))
-                .andExpect(jsonPath("$.status").value("ORDER_CONTENTS_LOADED"))
+                .andExpect(jsonPath("$.status").value("CREATED"))
                 .andExpect(jsonPath("$.items[0].sku").value("SKU-1"));
     }
 
     @Test
     void getOrderByIdShouldReturnOrder() throws Exception {
-        when(orderService.getOrderById(1L)).thenReturn(orderResponse(OrderStatus.ORDER_PACKED, null));
+        when(orderService.getOrderById(1L)).thenReturn(orderResponse(OrderStatus.PACKED, null));
 
         mockMvc.perform(get("/api/orders/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.status").value("ORDER_PACKED"));
+                .andExpect(jsonPath("$.status").value("PACKED"));
     }
 
     @Test
@@ -89,6 +89,15 @@ class OrderControllerTest {
     }
 
     @Test
+    void acceptOrderShouldReturnAcceptedOrder() throws Exception {
+        when(orderService.acceptOrder(1L)).thenReturn(orderResponse(OrderStatus.ACCEPTED, null));
+
+        mockMvc.perform(post("/api/orders/1/accept"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ACCEPTED"));
+    }
+
+    @Test
     void handoffShouldReturnUpdatedDeliveryInfo() throws Exception {
         DeliveryResponse deliveryResponse = new DeliveryResponse(
                 3L,
@@ -97,7 +106,7 @@ class OrderControllerTest {
                 LocalDateTime.of(2026, 3, 16, 13, 15, 30),
                 null
         );
-        when(orderService.handToDelivery(eq(1L), any())).thenReturn(orderResponse(OrderStatus.HANDED_TO_DELIVERY, deliveryResponse));
+        when(orderService.handToDelivery(eq(1L), any())).thenReturn(orderResponse(OrderStatus.IN_DELIVERY, deliveryResponse));
 
         mockMvc.perform(post("/api/orders/1/handoff")
                         .contentType(APPLICATION_JSON)
@@ -108,7 +117,7 @@ class OrderControllerTest {
                                 }
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("HANDED_TO_DELIVERY"))
+                .andExpect(jsonPath("$.status").value("IN_DELIVERY"))
                 .andExpect(jsonPath("$.delivery.trackingNumber").value("TRACK-001"));
     }
 

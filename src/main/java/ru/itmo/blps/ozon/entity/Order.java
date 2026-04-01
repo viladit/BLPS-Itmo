@@ -57,6 +57,17 @@ public class Order {
     @OneToOne(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private Delivery delivery;
 
+    public static Order create(String customerName, String deliveryAddress, LocalDateTime now) {
+        Order order = new Order();
+        order.customerName = customerName;
+        order.deliveryAddress = deliveryAddress;
+        order.status = OrderStatus.CREATED;
+        order.stockAvailable = null;
+        order.createdAt = now;
+        order.updatedAt = now;
+        return order;
+    }
+
     public void addItem(OrderItem item) {
         items.add(item);
         item.setOrder(this);
@@ -67,5 +78,21 @@ public class Order {
         if (delivery != null) {
             delivery.setOrder(this);
         }
+    }
+
+    public void changeStatus(OrderStatus status) {
+        this.status = status;
+    }
+
+    public void markStockAvailable(boolean stockAvailable) {
+        this.stockAvailable = stockAvailable;
+    }
+
+    public void changeCancellationReason(String cancellationReason) {
+        this.cancellationReason = cancellationReason;
+    }
+
+    public void touch(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 }

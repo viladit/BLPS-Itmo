@@ -40,4 +40,13 @@ public class OrderItem {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id", nullable = false)
     private Order order;
+
+    public static OrderItem create(String sku, String productName, Integer quantity, BigDecimal unitPrice) {
+        OrderItem item = new OrderItem();
+        item.sku = sku;
+        item.productName = productName;
+        item.quantity = quantity;
+        item.unitPrice = unitPrice;
+        return item;
+    }
 }
