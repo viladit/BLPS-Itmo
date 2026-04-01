@@ -42,29 +42,10 @@ public class OrderController {
         return orderService.getAllOrders();
     }
 
-    @PostMapping("/{orderId}/check-stock")
-    public OrderResponse checkStock(@PathVariable Long orderId) {
-        return orderService.checkStock(orderId);
-    }
 
-    @PostMapping("/{orderId}/reserve")
-    public OrderResponse reserveItems(@PathVariable Long orderId) {
-        return orderService.reserveItems(orderId);
-    }
-
-    @PostMapping("/{orderId}/confirm")
-    public OrderResponse confirmOrder(@PathVariable Long orderId) {
-        return orderService.confirmOrder(orderId);
-    }
-
-    @PostMapping("/{orderId}/picking-task")
-    public OrderResponse createPickingTask(@PathVariable Long orderId) {
-        return orderService.createPickingTask(orderId);
-    }
-
-    @PostMapping("/{orderId}/picked")
-    public OrderResponse markPicked(@PathVariable Long orderId) {
-        return orderService.markPicked(orderId);
+    @PostMapping("/{orderId}/accept")
+    public OrderResponse acceptOrder(@PathVariable Long orderId) {
+        return orderService.acceptOrder(orderId);
     }
 
     @PostMapping("/{orderId}/pack")
