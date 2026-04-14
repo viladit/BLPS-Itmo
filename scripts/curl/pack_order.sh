@@ -8,5 +8,5 @@ ORDER_ID="${1:-}"
 require_order_id "${ORDER_ID}"
 
 print_header "Pack Order ${ORDER_ID}"
-curl -sS -X POST "${BASE_URL}/api/orders/${ORDER_ID}/pack"
+curl_api -X POST "${BASE_URL}/api/orders/${ORDER_ID}/pack"
 printf '\n'

@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
@@ -24,9 +25,10 @@ import ru.itmo.blps.ozon.dto.OrderItemResponse;
 import ru.itmo.blps.ozon.dto.OrderResponse;
 import ru.itmo.blps.ozon.entity.OrderStatus;
 import ru.itmo.blps.ozon.exception.GlobalExceptionHandler;
-import ru.itmo.blps.ozon.service.OrderService;
+import ru.itmo.blps.ozon.facade.OrderAccessFacade;
 
 @WebMvcTest(OrderController.class)
+@AutoConfigureMockMvc(addFilters = false)
 @Import(GlobalExceptionHandler.class)
 class OrderControllerTest {
 
@@ -34,11 +36,11 @@ class OrderControllerTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private OrderService orderService;
+    private OrderAccessFacade orderAccessFacade;
 
     @Test
     void createOrderShouldReturnCreatedOrder() throws Exception {
-        when(orderService.createOrder(any())).thenReturn(orderResponse(OrderStatus.CREATED, null));
+        when(orderAccessFacade.createOrder(any())).thenReturn(orderResponse(OrderStatus.CREATED, null));
 
         mockMvc.perform(post("/api/orders")
                         .contentType(APPLICATION_JSON)
@@ -64,7 +66,7 @@ class OrderControllerTest {
 
     @Test
     void getOrderByIdShouldReturnOrder() throws Exception {
-        when(orderService.getOrderById(1L)).thenReturn(orderResponse(OrderStatus.PACKED, null));
+        when(orderAccessFacade.getOrderById(1L)).thenReturn(orderResponse(OrderStatus.PACKED, null));
 
         mockMvc.perform(get("/api/orders/1"))
                 .andExpect(status().isOk())
@@ -90,7 +92,7 @@ class OrderControllerTest {
 
     @Test
     void acceptOrderShouldReturnAcceptedOrder() throws Exception {
-        when(orderService.acceptOrder(1L)).thenReturn(orderResponse(OrderStatus.ACCEPTED, null));
+        when(orderAccessFacade.acceptOrder(1L)).thenReturn(orderResponse(OrderStatus.ACCEPTED, null));
 
         mockMvc.perform(post("/api/orders/1/accept"))
                 .andExpect(status().isOk())
@@ -106,7 +108,7 @@ class OrderControllerTest {
                 LocalDateTime.of(2026, 3, 16, 13, 15, 30),
                 null
         );
-        when(orderService.handToDelivery(eq(1L), any())).thenReturn(orderResponse(OrderStatus.IN_DELIVERY, deliveryResponse));
+        when(orderAccessFacade.handToDelivery(eq(1L), any())).thenReturn(orderResponse(OrderStatus.IN_DELIVERY, deliveryResponse));
 
         mockMvc.perform(post("/api/orders/1/handoff")
                         .contentType(APPLICATION_JSON)

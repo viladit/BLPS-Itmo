@@ -5,7 +5,7 @@ set -euo pipefail
 . "$(dirname "$0")/common.sh"
 
 print_header "Create Order"
-curl -sS -X POST "${BASE_URL}/api/orders" \
+curl_api -X POST "${BASE_URL}/api/orders" \
   -H "Content-Type: application/json" \
   -d '{
     "customerName": "Ivan Petrov",

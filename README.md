@@ -40,6 +40,34 @@
 - `GET /api/orders/{id}` - заказ по id
 - `POST /api/orders/{id}/cancel` - отмена заказа
 
+## Безопасность
+
+REST API защищён через Spring Security и HTTP Basic. Доступ к операциям разграничен по привилегиям, которые выдаются ролям:
+
+- `ROLE_MANAGER` - `ORDER_CREATE`, `ORDER_READ`, `ORDER_ACCEPT`, `ORDER_CANCEL`
+- `ROLE_WAREHOUSE` - `ORDER_READ`, `ORDER_PACK`
+- `ROLE_DELIVERY` - `ORDER_READ`, `ORDER_HANDOFF`, `ORDER_DELIVER`
+- `ROLE_ADMIN` - все привилегии
+
+Для локальной ручной проверки можно включить bootstrap учёток, ролей и привилегий через:
+
+- `APP_SECURITY_SEED_ENABLED=true`
+
+После этого приложение создаст недостающие тестовые пользователи:
+
+- `manager` / `manager123`
+- `warehouse` / `warehouse123`
+- `delivery` / `delivery123`
+- `admin` / `admin123`
+
+Пароли можно переопределить переменными окружения:
+
+- `APP_SECURITY_SEED_ENABLED`
+- `APP_SECURITY_MANAGER_PASSWORD`
+- `APP_SECURITY_WAREHOUSE_PASSWORD`
+- `APP_SECURITY_DELIVERY_PASSWORD`
+- `APP_SECURITY_ADMIN_PASSWORD`
+
 ## Стек
 - Java 21
 - Spring Boot
@@ -58,8 +86,8 @@
 Приложение по умолчанию ожидает PostgreSQL через локальный SSH-туннель до учебного сервера.
 
 См.:
-- [`application.properties`](/Users/viladit/IdeaProjects/BLPS-Itmo/src/main/resources/application.properties)
-- [`TESTING.md`](/Users/viladit/IdeaProjects/BLPS-Itmo/TESTING.md)
+- [`application.properties`](/Users/meow4-hi/IdeaProjects/BLPS-Itmo/src/main/resources/application.properties)
+- [`TESTING.md`](/Users/meow4-hi/IdeaProjects/BLPS-Itmo/TESTING.md)
 
 Ключевые моменты:
 - таблицы создаются Hibernate автоматически: `spring.jpa.hibernate.ddl-auto=update`
@@ -73,7 +101,7 @@ mvn clean package
 ```
 
 Готовый jar:
-- [`target/ozon-seller-backend-0.0.1-SNAPSHOT.jar`](/Users/viladit/IdeaProjects/BLPS-Itmo/target/ozon-seller-backend-0.0.1-SNAPSHOT.jar)
+- [`target/ozon-seller-backend-0.0.1-SNAPSHOT.jar`](/Users/meow4-hi/IdeaProjects/BLPS-Itmo/target/ozon-seller-backend-0.0.1-SNAPSHOT.jar)
 
 Запуск:
 
@@ -91,10 +119,11 @@ mvn test
 
 Ручные проверки:
 - curl-скрипты лежат в `scripts/curl`
-- основной сценарий: `scripts/curl/run_happy_path.sh`
+- основной сценарий: `scripts/curl/run_happy_path.sh` c разными ролями для manager/warehouse/delivery
+- для авторизации скриптов используйте `API_USERNAME` и `API_PASSWORD`
 
 Полная инструкция:
-- [`TESTING.md`](/Users/viladit/IdeaProjects/BLPS-Itmo/TESTING.md)
+- [`TESTING.md`](/Users/meow4-hi/IdeaProjects/BLPS-Itmo/TESTING.md)
 
 ## Что важно помнить при доработках
 
