@@ -14,59 +14,59 @@ import ru.itmo.blps.ozon.dto.CancelOrderRequest;
 import ru.itmo.blps.ozon.dto.CreateOrderRequest;
 import ru.itmo.blps.ozon.dto.HandToDeliveryRequest;
 import ru.itmo.blps.ozon.dto.OrderResponse;
-import ru.itmo.blps.ozon.service.OrderService;
+import ru.itmo.blps.ozon.facade.OrderAccessFacade;
 
 @RestController
 @RequestMapping("/api/orders")
 public class OrderController {
 
-    private final OrderService orderService;
+    private final OrderAccessFacade orderAccessFacade;
 
-    public OrderController(OrderService orderService) {
-        this.orderService = orderService;
+    public OrderController(OrderAccessFacade orderAccessFacade) {
+        this.orderAccessFacade = orderAccessFacade;
     }
 
     @PostMapping
     public ResponseEntity<OrderResponse> createOrder(@Valid @RequestBody CreateOrderRequest request) {
-        OrderResponse response = orderService.createOrder(request);
+        OrderResponse response = orderAccessFacade.createOrder(request);
         return ResponseEntity.created(URI.create("/api/orders/" + response.getId())).body(response);
     }
 
     @GetMapping("/{orderId}")
     public OrderResponse getOrderById(@PathVariable Long orderId) {
-        return orderService.getOrderById(orderId);
+        return orderAccessFacade.getOrderById(orderId);
     }
 
     @GetMapping
     public List<OrderResponse> listOrders() {
-        return orderService.getAllOrders();
+        return orderAccessFacade.getAllOrders();
     }
 
 
     @PostMapping("/{orderId}/accept")
     public OrderResponse acceptOrder(@PathVariable Long orderId) {
-        return orderService.acceptOrder(orderId);
+        return orderAccessFacade.acceptOrder(orderId);
     }
 
     @PostMapping("/{orderId}/pack")
     public OrderResponse packOrder(@PathVariable Long orderId) {
-        return orderService.packOrder(orderId);
+        return orderAccessFacade.packOrder(orderId);
     }
 
     @PostMapping("/{orderId}/handoff")
     public OrderResponse handToDelivery(@PathVariable Long orderId,
                                         @Valid @RequestBody HandToDeliveryRequest request) {
-        return orderService.handToDelivery(orderId, request);
+        return orderAccessFacade.handToDelivery(orderId, request);
     }
 
     @PostMapping("/{orderId}/deliver")
     public OrderResponse markDelivered(@PathVariable Long orderId) {
-        return orderService.markDelivered(orderId);
+        return orderAccessFacade.markDelivered(orderId);
     }
 
     @PostMapping("/{orderId}/cancel")
     public OrderResponse cancelOrder(@PathVariable Long orderId,
                                      @Valid @RequestBody CancelOrderRequest request) {
-        return orderService.cancelOrder(orderId, request);
+        return orderAccessFacade.cancelOrder(orderId, request);
     }
 }

@@ -22,12 +22,14 @@ export DB_PORT=15432
 Вариант через Maven:
 
 ```bash
+export APP_SECURITY_SEED_ENABLED=true
 mvn spring-boot:run
 ```
 
 Вариант через jar:
 
 ```bash
+export APP_SECURITY_SEED_ENABLED=true
 mvn clean package
 java -jar target/ozon-seller-backend-0.0.1-SNAPSHOT.jar
 ```
@@ -40,10 +42,28 @@ java -jar target/ozon-seller-backend-0.0.1-SNAPSHOT.jar
 ## 3. Проверить, что API отвечает
 
 ```bash
-curl http://localhost:8080/api/orders
+curl -u manager:manager123 http://localhost:8080/api/orders
 ```
 
 Ожидается JSON-массив, например `[]`, если заказов пока нет.
+
+Если не передать учётные данные, API должен вернуть `401`.
+
+Тестовые пользователи по умолчанию:
+- `manager` / `manager123`
+- `warehouse` / `warehouse123`
+- `delivery` / `delivery123`
+- `admin` / `admin123`
+
+Bootstrap тестовых учёток включается только если задано:
+- `APP_SECURITY_SEED_ENABLED=true`
+
+Пароли можно переопределить через:
+- `APP_SECURITY_SEED_ENABLED`
+- `APP_SECURITY_MANAGER_PASSWORD`
+- `APP_SECURITY_WAREHOUSE_PASSWORD`
+- `APP_SECURITY_DELIVERY_PASSWORD`
+- `APP_SECURITY_ADMIN_PASSWORD`
 
 ## 4. Проверить текущий happy path
 
@@ -51,6 +71,24 @@ curl http://localhost:8080/api/orders
 
 ```bash
 chmod +x scripts/curl/*.sh
+./scripts/curl/run_happy_path.sh
+```
+
+`run_happy_path.sh` сам переключает роли:
+- `manager` для `create` и `accept`
+- `warehouse` для `pack`
+- `delivery` для `handoff` и `deliver`
+- `manager` для итогового `get`
+
+При необходимости можно переопределить учётки и пароли переменными:
+
+```bash
+export API_MANAGER_USERNAME=manager
+export API_MANAGER_PASSWORD=manager123
+export API_WAREHOUSE_USERNAME=warehouse
+export API_WAREHOUSE_PASSWORD=warehouse123
+export API_DELIVERY_USERNAME=delivery
+export API_DELIVERY_PASSWORD=delivery123
 ./scripts/curl/run_happy_path.sh
 ```
 
@@ -69,12 +107,16 @@ chmod +x scripts/curl/*.sh
 Сначала создайте заказ:
 
 ```bash
+export API_USERNAME=manager
+export API_PASSWORD=manager123
 ./scripts/curl/create_order.sh
 ```
 
 Потом отмените заказ:
 
 ```bash
+export API_USERNAME=manager
+export API_PASSWORD=manager123
 ./scripts/curl/cancel_order.sh 1
 ```
 
@@ -89,13 +131,29 @@ chmod +x scripts/curl/*.sh
 Доступные curl-скрипты:
 
 ```bash
+export API_USERNAME=manager
+export API_PASSWORD=manager123
 ./scripts/curl/list_orders.sh
 ./scripts/curl/get_order.sh 1
 ./scripts/curl/accept_order.sh 1
+./scripts/curl/cancel_order.sh 1
+```
+
+Для операций склада:
+
+```bash
+export API_USERNAME=warehouse
+export API_PASSWORD=warehouse123
 ./scripts/curl/pack_order.sh 1
+```
+
+Для операций доставки:
+
+```bash
+export API_USERNAME=delivery
+export API_PASSWORD=delivery123
 ./scripts/curl/handoff_to_delivery.sh 1
 ./scripts/curl/mark_delivered.sh 1
-./scripts/curl/cancel_order.sh 1
 ```
 
 ## 7. Проверить автотесты
@@ -107,6 +165,7 @@ mvn test
 Сейчас в проекте есть:
 - сервисные тесты на переходы статусов
 - controller tests с `MockMvc`
+- integration tests на security, роли и HTTP Basic
 
 Тестовая база:
 - H2 в режиме совместимости с PostgreSQL
