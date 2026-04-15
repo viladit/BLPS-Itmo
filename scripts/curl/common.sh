@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-BASE_URL="${BASE_URL:-http://localhost:8080}"
+BASE_URL="${BASE_URL:-http://127.0.0.1:8080/ozon-seller-backend-0.0.1-SNAPSHOT}"
 CURL_COMMON_ARGS=(-sS)
 CURL_AUTH_ARGS=()
 

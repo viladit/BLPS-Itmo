@@ -22,7 +22,7 @@ import ru.itmo.blps.ozon.exception.OrderNotFoundException;
 import ru.itmo.blps.ozon.repository.OrderRepository;
 
 @Service
-@Transactional
+@Transactional(rollbackFor = Exception.class)
 public class OrderService {
 
     private final OrderRepository orderRepository;

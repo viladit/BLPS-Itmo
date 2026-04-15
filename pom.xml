@@ -13,6 +13,8 @@
     <groupId>ru.itmo.blps</groupId>
     <artifactId>ozon-seller-backend</artifactId>
     <version>0.0.1-SNAPSHOT</version>
+    <packaging>war</packaging>
+
     <name>ozon-seller-backend</name>
     <description>Simple Spring Boot backend for OZON seller-side order workflow</description>
 
@@ -24,6 +26,22 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-tomcat</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.transaction</groupId>
+            <artifactId>jakarta.transaction-api</artifactId>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
