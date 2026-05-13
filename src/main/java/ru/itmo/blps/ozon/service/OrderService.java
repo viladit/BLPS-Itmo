@@ -27,10 +27,12 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final Clock clock;
+    private final NotificationProducer notificationProducer;
 
-    public OrderService(OrderRepository orderRepository, Clock clock) {
+    public OrderService(OrderRepository orderRepository, Clock clock, NotificationProducer notificationProducer) {
         this.orderRepository = orderRepository;
         this.clock = clock;
+        this.notificationProducer = notificationProducer;
     }
 
     public OrderResponse createOrder(CreateOrderRequest request) {
@@ -53,11 +55,14 @@ public class OrderService {
             order.changeCancellationReason("Недостаточно товара на складе");
             order.touch(now);
             orderRepository.save(order);
+            notificationProducer.sendStatusChange(order, "Заказ отменен: недостаточно товара на складе");
             throw new InvalidOrderStateException("Заказ отменен: недостаточно товара на складе");
         }
         order.markStockAvailable(true);
 
-        return toResponse(orderRepository.save(order));
+        Order savedOrder = orderRepository.save(order);
+        notificationProducer.sendStatusChange(savedOrder, "Заказ успешно создан");
+        return toResponse(savedOrder);
     }
 
     public OrderResponse acceptOrder(Long orderId) {
@@ -130,7 +135,11 @@ public class OrderService {
 
         order.changeStatus(nextStatus);
         touch(order);
-        return toResponse(orderRepository.save(order));
+        Order savedOrder = orderRepository.save(order);
+
+        notificationProducer.sendStatusChange(savedOrder, "Статус заказа изменен на " + nextStatus);
+
+        return toResponse(savedOrder);
     }
 
 
