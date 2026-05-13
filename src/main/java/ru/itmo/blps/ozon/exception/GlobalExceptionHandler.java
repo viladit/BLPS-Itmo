@@ -3,12 +3,15 @@ package ru.itmo.blps.ozon.exception;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.TransactionException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import ru.itmo.blps.ozon.notification.NotificationDeliveryException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -21,6 +24,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidOrderStateException.class)
     public ResponseEntity<ApiErrorResponse> handleInvalidState(InvalidOrderStateException exception) {
         return buildResponse(HttpStatus.BAD_REQUEST, exception.getMessage(), null);
+    }
+
+    @ExceptionHandler(NotificationDeliveryException.class)
+    public ResponseEntity<ApiErrorResponse> handleNotificationFailure(NotificationDeliveryException exception) {
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage(), null);
+    }
+
+    @ExceptionHandler({DataAccessException.class, TransactionException.class})
+    public ResponseEntity<ApiErrorResponse> handleDatabaseFailure(RuntimeException exception) {
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, "Database transaction failed: " + exception.getMessage(), null);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

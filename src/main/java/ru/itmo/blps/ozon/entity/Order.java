@@ -51,6 +51,11 @@ public class Order {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
+    private LocalDateTime pendingReminderSentAt;
+
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean pendingEisTaskCreated;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
 
@@ -94,5 +99,13 @@ public class Order {
 
     public void touch(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public void markPendingReminderSent(LocalDateTime pendingReminderSentAt) {
+        this.pendingReminderSentAt = pendingReminderSentAt;
+    }
+
+    public void markPendingEisTaskCreated() {
+        this.pendingEisTaskCreated = true;
     }
 }

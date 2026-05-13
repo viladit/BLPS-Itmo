@@ -27,6 +27,7 @@ import ru.itmo.blps.ozon.entity.Order;
 import ru.itmo.blps.ozon.entity.OrderItem;
 import ru.itmo.blps.ozon.entity.OrderStatus;
 import ru.itmo.blps.ozon.exception.InvalidOrderStateException;
+import ru.itmo.blps.ozon.notification.NotificationService;
 import ru.itmo.blps.ozon.repository.OrderRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,13 +36,20 @@ class OrderServiceTest {
     @Mock
     private OrderRepository orderRepository;
 
+    @Mock
+    private NotificationService notificationService;
+
+    @Mock
+    private OrderNotificationService orderNotificationService;
+
     private OrderService orderService;
 
     @BeforeEach
     void setUp() {
         Clock fixedClock = Clock.fixed(Instant.parse("2026-03-16T10:15:30Z"), ZoneId.of("Europe/Moscow"));
-        orderService = new OrderService(orderRepository, fixedClock);
+        orderService = new OrderService(orderRepository, notificationService, orderNotificationService, fixedClock);
         lenient().when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(orderRepository.saveAndFlush(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @Test

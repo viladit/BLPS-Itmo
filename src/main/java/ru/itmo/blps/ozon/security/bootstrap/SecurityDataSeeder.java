@@ -20,7 +20,7 @@ import ru.itmo.blps.ozon.security.repository.RoleRepository;
 import ru.itmo.blps.ozon.security.repository.UserAccountRepository;
 
 @Component
-@ConditionalOnProperty(name = "app.security.seed.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "app.security.seed.enabled", havingValue = "true")
 public class SecurityDataSeeder implements ApplicationRunner {
 
     private final PrivilegeRepository privilegeRepository;

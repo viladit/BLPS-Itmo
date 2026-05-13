@@ -40,7 +40,7 @@ class OrderControllerTest {
 
     @Test
     void createOrderShouldReturnCreatedOrder() throws Exception {
-        when(orderAccessFacade.createOrder(any())).thenReturn(orderResponse(OrderStatus.CREATED, null));
+        when(orderAccessFacade.createOrder(any(), eq(false), eq(0))).thenReturn(orderResponse(OrderStatus.CREATED, null));
 
         mockMvc.perform(post("/api/orders")
                         .contentType(APPLICATION_JSON)

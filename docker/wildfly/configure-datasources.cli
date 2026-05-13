@@ -1,0 +1,17 @@
+embed-server --std-out=echo --server-config=standalone.xml
+
+module add --name=org.postgresql --resources=/tmp/postgresql.jar
+
+/subsystem=datasources/jdbc-driver=postgresql:add(driver-name=postgresql,driver-module-name=org.postgresql,driver-class-name=org.postgresql.Driver,driver-xa-datasource-class-name=org.postgresql.xa.PGXADataSource)
+
+/subsystem=datasources/xa-data-source=OrdersXADS:add(jndi-name=java:/PostgresDS,driver-name=postgresql,user-name="${env.ORDERS_DB_USERNAME:orders}",password="${env.ORDERS_DB_PASSWORD:orders}",same-rm-override=false,enabled=true,use-ccm=true,valid-connection-checker-class-name=org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLValidConnectionChecker,exception-sorter-class-name=org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLExceptionSorter)
+/subsystem=datasources/xa-data-source=OrdersXADS/xa-datasource-properties=ServerName:add(value="${env.ORDERS_DB_HOST:orders-db}")
+/subsystem=datasources/xa-data-source=OrdersXADS/xa-datasource-properties=PortNumber:add(value="${env.ORDERS_DB_PORT:5432}")
+/subsystem=datasources/xa-data-source=OrdersXADS/xa-datasource-properties=DatabaseName:add(value="${env.ORDERS_DB_NAME:orders}")
+
+/subsystem=datasources/xa-data-source=NotificationsXADS:add(jndi-name=java:/NotificationDS,driver-name=postgresql,user-name="${env.NOTIFICATION_DB_USERNAME:notifications}",password="${env.NOTIFICATION_DB_PASSWORD:notifications}",same-rm-override=false,enabled=true,use-ccm=true,valid-connection-checker-class-name=org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLValidConnectionChecker,exception-sorter-class-name=org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLExceptionSorter)
+/subsystem=datasources/xa-data-source=NotificationsXADS/xa-datasource-properties=ServerName:add(value="${env.NOTIFICATION_DB_HOST:notifications-db}")
+/subsystem=datasources/xa-data-source=NotificationsXADS/xa-datasource-properties=PortNumber:add(value="${env.NOTIFICATION_DB_PORT:5432}")
+/subsystem=datasources/xa-data-source=NotificationsXADS/xa-datasource-properties=DatabaseName:add(value="${env.NOTIFICATION_DB_NAME:notifications}")
+
+stop-embedded-server

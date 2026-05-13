@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Ozon Seller - Уведомления</title>
+
+    <link rel="stylesheet" href="/css/style.css">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+</head>
+<body>
+<div class="container">
+    <h2>Уведомления (WebSocket)</h2>
+    <div>
+        <label for="orderId">ID заказа:</label>
+        <input type="text" id="orderId" placeholder="Введите ID (например, 1)">
+        <button onclick="connect()">Подписаться</button>
+    </div>
+    <div id="notifications" class="notification-box">
+        <i>Ожидание подключения...</i>
+    </div>
+</div>
+
+<script src="/js/app.js"></script>
+</body>
+</html>

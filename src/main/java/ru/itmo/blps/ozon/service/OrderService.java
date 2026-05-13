@@ -19,6 +19,7 @@ import ru.itmo.blps.ozon.entity.OrderItem;
 import ru.itmo.blps.ozon.entity.OrderStatus;
 import ru.itmo.blps.ozon.exception.InvalidOrderStateException;
 import ru.itmo.blps.ozon.exception.OrderNotFoundException;
+import ru.itmo.blps.ozon.notification.NotificationService;
 import ru.itmo.blps.ozon.repository.OrderRepository;
 
 @Service
@@ -26,14 +27,29 @@ import ru.itmo.blps.ozon.repository.OrderRepository;
 public class OrderService {
 
     private final OrderRepository orderRepository;
+    private final NotificationService notificationService;
+    private final OrderNotificationService orderNotificationService;
     private final Clock clock;
 
-    public OrderService(OrderRepository orderRepository, Clock clock) {
+    public OrderService(OrderRepository orderRepository,
+                        NotificationService notificationService,
+                        OrderNotificationService orderNotificationService,
+                        Clock clock) {
         this.orderRepository = orderRepository;
+        this.notificationService = notificationService;
+        this.orderNotificationService = orderNotificationService;
         this.clock = clock;
     }
 
     public OrderResponse createOrder(CreateOrderRequest request) {
+        return createOrder(request, false, 0);
+    }
+
+    public OrderResponse createOrder(CreateOrderRequest request, boolean failNotification) {
+        return createOrder(request, failNotification, 0);
+    }
+
+    public OrderResponse createOrder(CreateOrderRequest request, boolean failNotification, int notificationPauseSeconds) {
         LocalDateTime now = now();
         Order order = Order.create(request.getCustomerName(), request.getDeliveryAddress(), now);
 
@@ -57,7 +73,19 @@ public class OrderService {
         }
         order.markStockAvailable(true);
 
-        return toResponse(orderRepository.save(order));
+        Order savedOrder = orderRepository.saveAndFlush(order);
+        pauseInsideDistributedTransaction(notificationPauseSeconds);
+        var notificationDraft = notificationService.prepareOrderCreated(
+                savedOrder.getCustomerName(),
+                savedOrder.getCreatedAt(),
+                failNotification
+        );
+        notificationService.completeOrderCreated(notificationDraft, savedOrder);
+        orderNotificationService.publishAfterCommit(
+                savedOrder,
+                "Создан новый заказ, ожидает подтверждения менеджером"
+        );
+        return toResponse(savedOrder);
     }
 
     public OrderResponse acceptOrder(Long orderId) {
@@ -113,6 +141,13 @@ public class OrderService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<OrderResponse> getOrdersByStatus(OrderStatus status) {
+        return orderRepository.findAllByStatusOrderByIdAsc(status).stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
     private OrderResponse updateOrderStatus(Long orderId, OrderStatus expectedStatus, OrderStatus nextStatus) {
         return updateOrderStatus(orderId, expectedStatus, nextStatus, null);
     }
@@ -128,9 +163,12 @@ public class OrderService {
             additionalAction.accept(order);
         }
 
+        OrderStatus previousStatus = order.getStatus();
         order.changeStatus(nextStatus);
         touch(order);
-        return toResponse(orderRepository.save(order));
+        Order savedOrder = orderRepository.save(order);
+        orderNotificationService.publishAfterCommit(savedOrder, statusChangeMessage(previousStatus, nextStatus));
+        return toResponse(savedOrder);
     }
 
 
@@ -155,8 +193,24 @@ public class OrderService {
         order.touch(now());
     }
 
+    private String statusChangeMessage(OrderStatus previousStatus, OrderStatus nextStatus) {
+        return "Статус заказа изменился: " + previousStatus + " -> " + nextStatus;
+    }
+
     private LocalDateTime now() {
         return LocalDateTime.now(clock);
+    }
+
+    private void pauseInsideDistributedTransaction(int seconds) {
+        if (seconds <= 0) {
+            return;
+        }
+        try {
+            Thread.sleep(seconds * 1000L);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Distributed transaction demo was interrupted", exception);
+        }
     }
 
     private OrderResponse toResponse(Order order) {

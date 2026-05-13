@@ -26,6 +26,7 @@ import ru.itmo.blps.ozon.entity.Delivery;
 import ru.itmo.blps.ozon.entity.Order;
 import ru.itmo.blps.ozon.entity.OrderItem;
 import ru.itmo.blps.ozon.entity.OrderStatus;
+import ru.itmo.blps.ozon.notification.NotificationEventRepository;
 import ru.itmo.blps.ozon.repository.OrderRepository;
 import ru.itmo.blps.ozon.security.entity.Privilege;
 import ru.itmo.blps.ozon.security.entity.Role;
@@ -57,9 +58,13 @@ class OrderSecurityIntegrationTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private NotificationEventRepository notificationEventRepository;
+
     @BeforeEach
     void setUp() {
         orderRepository.deleteAll();
+        notificationEventRepository.deleteAll();
         userAccountRepository.deleteAll();
         roleRepository.deleteAll();
         privilegeRepository.deleteAll();
@@ -103,6 +108,8 @@ class OrderSecurityIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("CREATED"));
 
+        org.assertj.core.api.Assertions.assertThat(notificationEventRepository.count()).isEqualTo(1);
+
         mockMvc.perform(get("/api/orders")
                         .with(httpBasic("manager", "manager123")))
                 .andExpect(status().isOk());
@@ -123,6 +130,19 @@ class OrderSecurityIntegrationTest {
                         .content(cancelOrderRequest()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELLED"));
+    }
+
+    @Test
+    void createOrderShouldRollbackOrderAndNotificationWhenNotificationDatabaseFails() throws Exception {
+        mockMvc.perform(post("/api/orders?failNotification=true")
+                        .with(httpBasic("manager", "manager123"))
+                        .contentType(APPLICATION_JSON)
+                        .content(createOrderRequest()))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.message").value("Notification database failed during distributed transaction"));
+
+        org.assertj.core.api.Assertions.assertThat(orderRepository.findAll()).isEmpty();
+        org.assertj.core.api.Assertions.assertThat(notificationEventRepository.count()).isZero();
     }
 
     @Test

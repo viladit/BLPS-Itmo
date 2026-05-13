@@ -16,7 +16,7 @@ run_as() {
   local username="$1"
   local password="$2"
   shift 2
-  API_USERNAME="${username}" API_PASSWORD="${password}" "$@"
+  env API_USERNAME="${username}" API_PASSWORD="${password}" "$@"
 }
 
 CREATE_RESPONSE="$(run_as "${MANAGER_USERNAME}" "${MANAGER_PASSWORD}" "${SCRIPT_DIR}/create_order.sh")"
@@ -36,3 +36,4 @@ run_as "${WAREHOUSE_USERNAME}" "${WAREHOUSE_PASSWORD}" "${SCRIPT_DIR}/pack_order
 run_as "${DELIVERY_USERNAME}" "${DELIVERY_PASSWORD}" "${SCRIPT_DIR}/handoff_to_delivery.sh" "${ORDER_ID}"
 run_as "${DELIVERY_USERNAME}" "${DELIVERY_PASSWORD}" "${SCRIPT_DIR}/mark_delivered.sh" "${ORDER_ID}"
 run_as "${MANAGER_USERNAME}" "${MANAGER_PASSWORD}" "${SCRIPT_DIR}/get_order.sh" "${ORDER_ID}"
+run_as "${MANAGER_USERNAME}" "${MANAGER_PASSWORD}" "${SCRIPT_DIR}/list_notifications.sh"
