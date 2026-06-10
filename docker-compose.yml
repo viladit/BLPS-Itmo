@@ -31,6 +31,8 @@ services:
 
   rabbitmq:
     image: rabbitmq:4-management
+    environment:
+      RABBITMQ_ERLANG_COOKIE: blps-lab4-cookie
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -50,7 +52,7 @@ services:
       rabbitmq:
         condition: service_healthy
     environment:
-      SPRING_PROFILES_ACTIVE: wildfly
+      SPRING_PROFILES_ACTIVE: docker
       APP_SECURITY_SEED_ENABLED: "true"
       ORDERS_DB_HOST: orders-db
       ORDERS_DB_PORT: 5432
@@ -75,8 +77,8 @@ services:
       APP_PENDING_REMINDER_INITIAL_DELAY: PT10S
       APP_PENDING_REMINDER_FIXED_DELAY: PT15S
       APP_PENDING_REMINDER_REPEAT_INTERVAL: PT15S
-      APP_EIS_BITRIX_ENABLED: "${APP_EIS_BITRIX_ENABLED:-false}"
-      APP_EIS_BITRIX_WEBHOOK_URL: "${APP_EIS_BITRIX_WEBHOOK_URL:-}"
+      APP_EIS_BITRIX_ENABLED: "true"
+      APP_EIS_BITRIX_WEBHOOK_URL: "https://b24-fgoxpo.bitrix24.ru/rest/1/ycz5p6v8s5izx58e/tasks.task.add"
       APP_EIS_BITRIX_RESPONSIBLE_ID: "${APP_EIS_BITRIX_RESPONSIBLE_ID:-1}"
     ports:
       - "8080:8080"

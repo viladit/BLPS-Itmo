@@ -3,54 +3,25 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>OZON Seller Transaction Demo</title>
+  <title>OZON Seller BPM</title>
   <link rel="stylesheet" href="/app.css">
 </head>
 <body>
   <main class="shell">
     <section class="panel">
-      <h1>OZON Seller Transaction Demo</h1>
-
-      <div class="grid">
-        <label>
-          Логин
-          <input id="username" value="manager" autocomplete="username">
-        </label>
-        <label>
-          Пароль
-          <input id="password" value="manager123" type="password" autocomplete="current-password">
-        </label>
-      </div>
-
-      <label class="check">
-        <input id="failNotification" type="checkbox">
-        10 секунд таймер
-      </label>
-
+      <p class="eyebrow">Лабораторная 4</p>
+      <h1>OZON Seller BPM</h1>
+      <p>
+        Управление заказом перенесено в Camunda Tasklist. Для проверки используйте
+        пользователей manager, warehouse, delivery и admin с паролями из проекта.
+      </p>
       <div class="actions">
-        <button id="createOrder">Создать заказ</button>
-        <button id="runReminders" type="button">Проверить ожидающие</button>
-        <button id="refreshData" type="button">Обновить данные</button>
+        <a class="button button-primary" href="/camunda/app/tasklist/default/">Tasklist</a>
+        <a class="button" href="/camunda/app/cockpit/default/">Cockpit</a>
+        <a class="button" href="/api/orders">REST: заказы</a>
+        <a class="button" href="/api/notifications">REST: уведомления</a>
       </div>
-
-      <pre id="result">Готово к проверке.</pre>
-      <p id="wsStatus" class="muted">WebSocket уведомления: подключение...</p>
-    </section>
-
-    <section class="columns">
-      <article>
-        <h2>Заказы</h2>
-        <div id="orders" class="list"></div>
-      </article>
-      <article>
-        <h2>Уведомления</h2>
-        <div id="notifications" class="list"></div>
-      </article>
     </section>
   </main>
-
-  <div id="toastRoot" class="toast-root" aria-live="polite" aria-atomic="false"></div>
-
-  <script src="/app.js"></script>
 </body>
 </html>

@@ -5,17 +5,15 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.itmo.blps.ozon.eis.BitrixEisService;
 import ru.itmo.blps.ozon.entity.Order;
 import ru.itmo.blps.ozon.entity.OrderStatus;
+import ru.itmo.blps.ozon.exception.OrderNotFoundException;
 import ru.itmo.blps.ozon.repository.OrderRepository;
 
 @Service
-@ConditionalOnProperty(name = "app.orders.pending-reminder.enabled", havingValue = "true")
 public class PendingOrderReminderService {
 
     private final OrderRepository orderRepository;
@@ -39,10 +37,6 @@ public class PendingOrderReminderService {
         this.repeatInterval = repeatInterval;
     }
 
-    @Scheduled(
-            initialDelayString = "${app.orders.pending-reminder.initial-delay}",
-            fixedDelayString = "${app.orders.pending-reminder.fixed-delay}"
-    )
     @Transactional(rollbackFor = Exception.class)
     public int processPendingOrders() {
         LocalDateTime now = LocalDateTime.now(clock);
@@ -66,6 +60,30 @@ public class PendingOrderReminderService {
         }
 
         return pendingOrders.size();
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public boolean processPendingOrder(Long orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
+        if (order.getStatus() != OrderStatus.CREATED) {
+            return false;
+        }
+        sendReminder(order, LocalDateTime.now(clock));
+        return true;
+    }
+
+    private void sendReminder(Order order, LocalDateTime now) {
+        if (!order.isPendingEisTaskCreated()) {
+            bitrixEisService.createPendingOrderTask(order);
+            order.markPendingEisTaskCreated();
+        }
+        orderNotificationService.publishAfterCommit(
+                order,
+                "Заказ ожидает подтверждения менеджером дольше " + formatDuration(pendingAge)
+        );
+        order.markPendingReminderSent(now);
+        order.touch(now);
     }
 
     private String formatDuration(Duration duration) {

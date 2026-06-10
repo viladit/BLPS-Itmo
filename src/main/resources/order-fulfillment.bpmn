@@ -1,0 +1,349 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_OrderFulfillment"
+                  targetNamespace="http://itmo.ru/blps/ozon/order-fulfillment">
+  <bpmn:process id="orderFulfillment" name="OZON seller-side order fulfillment" isExecutable="true" camunda:historyTimeToLive="30">
+    <bpmn:startEvent id="StartEvent_OrderCreated" name="Заказ создан">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="customerName" label="Покупатель" type="string">
+            <camunda:validation>
+              <camunda:constraint name="required"/>
+            </camunda:validation>
+          </camunda:formField>
+          <camunda:formField id="deliveryAddress" label="Адрес доставки" type="string">
+            <camunda:validation>
+              <camunda:constraint name="required"/>
+            </camunda:validation>
+          </camunda:formField>
+          <camunda:formField id="sku" label="SKU" type="string">
+            <camunda:validation>
+              <camunda:constraint name="required"/>
+            </camunda:validation>
+          </camunda:formField>
+          <camunda:formField id="productName" label="Товар" type="string">
+            <camunda:validation>
+              <camunda:constraint name="required"/>
+            </camunda:validation>
+          </camunda:formField>
+          <camunda:formField id="quantity" label="Количество" type="long" defaultValue="1">
+            <camunda:validation>
+              <camunda:constraint name="required"/>
+            </camunda:validation>
+          </camunda:formField>
+          <camunda:formField id="unitPrice" label="Цена" type="string" defaultValue="100.00">
+            <camunda:validation>
+              <camunda:constraint name="required"/>
+            </camunda:validation>
+          </camunda:formField>
+          <camunda:formField id="failNotification" label="Сломать запись уведомления" type="boolean" defaultValue="false"/>
+          <camunda:formField id="notificationPauseSeconds" label="Пауза перед уведомлением, сек." type="long" defaultValue="0"/>
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_Start_CreateOrder</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:serviceTask id="ServiceTask_CreateOrder" name="Сохранить заказ" camunda:delegateExpression="${createOrderDelegate}" camunda:asyncBefore="true">
+      <bpmn:incoming>Flow_Start_CreateOrder</bpmn:incoming>
+      <bpmn:outgoing>Flow_CreateOrder_ApproveTask</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="UserTask_ApproveOrder" name="Подтвердить заказ" camunda:candidateGroups="MANAGER">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="approved" label="Подтвердить заказ" type="boolean" defaultValue="true">
+            <camunda:validation>
+              <camunda:constraint name="required"/>
+            </camunda:validation>
+          </camunda:formField>
+          <camunda:formField id="cancellationReason" label="Причина отмены" type="string"/>
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_CreateOrder_ApproveTask</bpmn:incoming>
+      <bpmn:outgoing>Flow_ApproveTask_ApprovedGateway</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:boundaryEvent id="BoundaryTimer_PendingReminder" name="Напоминание менеджеру" attachedToRef="UserTask_ApproveOrder" cancelActivity="false">
+      <bpmn:outgoing>Flow_Timer_Reminder</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeCycle xsi:type="bpmn:tFormalExpression">R/PT15S</bpmn:timeCycle>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <bpmn:serviceTask id="ServiceTask_PendingReminder" name="Создать напоминание" camunda:delegateExpression="${pendingReminderDelegate}" camunda:asyncBefore="true">
+      <bpmn:incoming>Flow_Timer_Reminder</bpmn:incoming>
+      <bpmn:outgoing>Flow_Reminder_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="EndEvent_ReminderHandled" name="Напоминание отправлено">
+      <bpmn:incoming>Flow_Reminder_End</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:exclusiveGateway id="Gateway_OrderApproved" name="Подтвержден?">
+      <bpmn:incoming>Flow_ApproveTask_ApprovedGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_Approved_Accept</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Rejected_Cancel</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="ServiceTask_AcceptOrder" name="Сменить статус на ACCEPTED" camunda:delegateExpression="${acceptOrderDelegate}" camunda:asyncBefore="true">
+      <bpmn:incoming>Flow_Approved_Accept</bpmn:incoming>
+      <bpmn:outgoing>Flow_Accept_PackTask</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="UserTask_PackOrder" name="Собрать заказ" camunda:candidateGroups="WAREHOUSE">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="cancelOrder" label="Отменить заказ" type="boolean" defaultValue="false"/>
+          <camunda:formField id="cancellationReason" label="Причина отмены" type="string"/>
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Accept_PackTask</bpmn:incoming>
+      <bpmn:outgoing>Flow_PackTask_CancelGateway</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:exclusiveGateway id="Gateway_WarehouseCancel" name="Отменить до сборки?">
+      <bpmn:incoming>Flow_PackTask_CancelGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_Warehouse_Cancel</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Warehouse_Pack</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="ServiceTask_PackOrder" name="Сменить статус на PACKED" camunda:delegateExpression="${packOrderDelegate}" camunda:asyncBefore="true">
+      <bpmn:incoming>Flow_Warehouse_Pack</bpmn:incoming>
+      <bpmn:outgoing>Flow_Pack_HandoffTask</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="UserTask_HandToDelivery" name="Передать в доставку" camunda:candidateGroups="DELIVERY">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="cancelOrder" label="Отменить заказ" type="boolean" defaultValue="false"/>
+          <camunda:formField id="cancellationReason" label="Причина отмены" type="string"/>
+          <camunda:formField id="carrierName" label="Служба доставки" type="string">
+            <camunda:validation>
+              <camunda:constraint name="required"/>
+            </camunda:validation>
+          </camunda:formField>
+          <camunda:formField id="trackingNumber" label="Трек-номер" type="string">
+            <camunda:validation>
+              <camunda:constraint name="required"/>
+            </camunda:validation>
+          </camunda:formField>
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Pack_HandoffTask</bpmn:incoming>
+      <bpmn:outgoing>Flow_HandoffTask_CancelGateway</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:exclusiveGateway id="Gateway_HandoffCancel" name="Отменить до доставки?">
+      <bpmn:incoming>Flow_HandoffTask_CancelGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_Handoff_Cancel</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Handoff_Delivery</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="ServiceTask_HandToDelivery" name="Сменить статус на IN_DELIVERY" camunda:delegateExpression="${handToDeliveryDelegate}" camunda:asyncBefore="true">
+      <bpmn:incoming>Flow_Handoff_Delivery</bpmn:incoming>
+      <bpmn:outgoing>Flow_Handoff_DeliveredTask</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="UserTask_MarkDelivered" name="Подтвердить доставку" camunda:candidateGroups="DELIVERY">
+      <bpmn:incoming>Flow_Handoff_DeliveredTask</bpmn:incoming>
+      <bpmn:outgoing>Flow_DeliveredTask_Deliver</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="ServiceTask_MarkDelivered" name="Сменить статус на DELIVERED" camunda:delegateExpression="${markDeliveredDelegate}" camunda:asyncBefore="true">
+      <bpmn:incoming>Flow_DeliveredTask_Deliver</bpmn:incoming>
+      <bpmn:outgoing>Flow_Deliver_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="ServiceTask_CancelOrder" name="Отменить заказ" camunda:delegateExpression="${cancelOrderDelegate}" camunda:asyncBefore="true">
+      <bpmn:incoming>Flow_Rejected_Cancel</bpmn:incoming>
+      <bpmn:incoming>Flow_Warehouse_Cancel</bpmn:incoming>
+      <bpmn:incoming>Flow_Handoff_Cancel</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cancel_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="EndEvent_Cancelled" name="Заказ отменен">
+      <bpmn:incoming>Flow_Cancel_End</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="EndEvent_Delivered" name="Заказ выполнен">
+      <bpmn:incoming>Flow_Deliver_End</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_Start_CreateOrder" sourceRef="StartEvent_OrderCreated" targetRef="ServiceTask_CreateOrder"/>
+    <bpmn:sequenceFlow id="Flow_CreateOrder_ApproveTask" sourceRef="ServiceTask_CreateOrder" targetRef="UserTask_ApproveOrder"/>
+    <bpmn:sequenceFlow id="Flow_Timer_Reminder" sourceRef="BoundaryTimer_PendingReminder" targetRef="ServiceTask_PendingReminder"/>
+    <bpmn:sequenceFlow id="Flow_Reminder_End" sourceRef="ServiceTask_PendingReminder" targetRef="EndEvent_ReminderHandled"/>
+    <bpmn:sequenceFlow id="Flow_ApproveTask_ApprovedGateway" sourceRef="UserTask_ApproveOrder" targetRef="Gateway_OrderApproved"/>
+    <bpmn:sequenceFlow id="Flow_Approved_Accept" sourceRef="Gateway_OrderApproved" targetRef="ServiceTask_AcceptOrder">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression"><![CDATA[${approved == true}]]></bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Rejected_Cancel" sourceRef="Gateway_OrderApproved" targetRef="ServiceTask_CancelOrder">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression"><![CDATA[${approved != true}]]></bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Accept_PackTask" sourceRef="ServiceTask_AcceptOrder" targetRef="UserTask_PackOrder"/>
+    <bpmn:sequenceFlow id="Flow_PackTask_CancelGateway" sourceRef="UserTask_PackOrder" targetRef="Gateway_WarehouseCancel"/>
+    <bpmn:sequenceFlow id="Flow_Warehouse_Cancel" sourceRef="Gateway_WarehouseCancel" targetRef="ServiceTask_CancelOrder">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression"><![CDATA[${cancelOrder == true}]]></bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Warehouse_Pack" sourceRef="Gateway_WarehouseCancel" targetRef="ServiceTask_PackOrder">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression"><![CDATA[${cancelOrder != true}]]></bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Pack_HandoffTask" sourceRef="ServiceTask_PackOrder" targetRef="UserTask_HandToDelivery"/>
+    <bpmn:sequenceFlow id="Flow_HandoffTask_CancelGateway" sourceRef="UserTask_HandToDelivery" targetRef="Gateway_HandoffCancel"/>
+    <bpmn:sequenceFlow id="Flow_Handoff_Cancel" sourceRef="Gateway_HandoffCancel" targetRef="ServiceTask_CancelOrder">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression"><![CDATA[${cancelOrder == true}]]></bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Handoff_Delivery" sourceRef="Gateway_HandoffCancel" targetRef="ServiceTask_HandToDelivery">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression"><![CDATA[${cancelOrder != true}]]></bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Handoff_DeliveredTask" sourceRef="ServiceTask_HandToDelivery" targetRef="UserTask_MarkDelivered"/>
+    <bpmn:sequenceFlow id="Flow_DeliveredTask_Deliver" sourceRef="UserTask_MarkDelivered" targetRef="ServiceTask_MarkDelivered"/>
+    <bpmn:sequenceFlow id="Flow_Deliver_End" sourceRef="ServiceTask_MarkDelivered" targetRef="EndEvent_Delivered"/>
+    <bpmn:sequenceFlow id="Flow_Cancel_End" sourceRef="ServiceTask_CancelOrder" targetRef="EndEvent_Cancelled"/>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_OrderFulfillment">
+    <bpmndi:BPMNPlane id="BPMNPlane_OrderFulfillment" bpmnElement="orderFulfillment">
+      <bpmndi:BPMNShape id="StartEvent_OrderCreated_di" bpmnElement="StartEvent_OrderCreated">
+        <dc:Bounds x="120" y="170" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_CreateOrder_di" bpmnElement="ServiceTask_CreateOrder">
+        <dc:Bounds x="220" y="148" width="120" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_ApproveOrder_di" bpmnElement="UserTask_ApproveOrder">
+        <dc:Bounds x="400" y="148" width="130" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BoundaryTimer_PendingReminder_di" bpmnElement="BoundaryTimer_PendingReminder">
+        <dc:Bounds x="452" y="210" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_PendingReminder_di" bpmnElement="ServiceTask_PendingReminder">
+        <dc:Bounds x="410" y="300" width="130" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_ReminderHandled_di" bpmnElement="EndEvent_ReminderHandled">
+        <dc:Bounds x="457" y="430" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_OrderApproved_di" bpmnElement="Gateway_OrderApproved" isMarkerVisible="true">
+        <dc:Bounds x="600" y="163" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_AcceptOrder_di" bpmnElement="ServiceTask_AcceptOrder">
+        <dc:Bounds x="720" y="148" width="140" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_PackOrder_di" bpmnElement="UserTask_PackOrder">
+        <dc:Bounds x="930" y="148" width="130" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_WarehouseCancel_di" bpmnElement="Gateway_WarehouseCancel" isMarkerVisible="true">
+        <dc:Bounds x="1130" y="163" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_PackOrder_di" bpmnElement="ServiceTask_PackOrder">
+        <dc:Bounds x="1250" y="148" width="140" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_HandToDelivery_di" bpmnElement="UserTask_HandToDelivery">
+        <dc:Bounds x="1460" y="148" width="150" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_HandoffCancel_di" bpmnElement="Gateway_HandoffCancel" isMarkerVisible="true">
+        <dc:Bounds x="1680" y="163" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_HandToDelivery_di" bpmnElement="ServiceTask_HandToDelivery">
+        <dc:Bounds x="1800" y="148" width="150" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_MarkDelivered_di" bpmnElement="UserTask_MarkDelivered">
+        <dc:Bounds x="2020" y="148" width="150" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_MarkDelivered_di" bpmnElement="ServiceTask_MarkDelivered">
+        <dc:Bounds x="2240" y="148" width="150" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Delivered_di" bpmnElement="EndEvent_Delivered">
+        <dc:Bounds x="2470" y="170" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_CancelOrder_di" bpmnElement="ServiceTask_CancelOrder">
+        <dc:Bounds x="1220" y="330" width="140" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Cancelled_di" bpmnElement="EndEvent_Cancelled">
+        <dc:Bounds x="1470" y="352" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_Start_CreateOrder_di" bpmnElement="Flow_Start_CreateOrder">
+        <di:waypoint x="156" y="188"/>
+        <di:waypoint x="220" y="188"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_CreateOrder_ApproveTask_di" bpmnElement="Flow_CreateOrder_ApproveTask">
+        <di:waypoint x="340" y="188"/>
+        <di:waypoint x="400" y="188"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Timer_Reminder_di" bpmnElement="Flow_Timer_Reminder">
+        <di:waypoint x="470" y="246"/>
+        <di:waypoint x="470" y="300"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Reminder_End_di" bpmnElement="Flow_Reminder_End">
+        <di:waypoint x="475" y="380"/>
+        <di:waypoint x="475" y="430"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ApproveTask_ApprovedGateway_di" bpmnElement="Flow_ApproveTask_ApprovedGateway">
+        <di:waypoint x="530" y="188"/>
+        <di:waypoint x="600" y="188"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Approved_Accept_di" bpmnElement="Flow_Approved_Accept">
+        <di:waypoint x="650" y="188"/>
+        <di:waypoint x="720" y="188"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Rejected_Cancel_di" bpmnElement="Flow_Rejected_Cancel">
+        <di:waypoint x="625" y="213"/>
+        <di:waypoint x="625" y="370"/>
+        <di:waypoint x="1220" y="370"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Accept_PackTask_di" bpmnElement="Flow_Accept_PackTask">
+        <di:waypoint x="860" y="188"/>
+        <di:waypoint x="930" y="188"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_PackTask_CancelGateway_di" bpmnElement="Flow_PackTask_CancelGateway">
+        <di:waypoint x="1060" y="188"/>
+        <di:waypoint x="1130" y="188"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Warehouse_Cancel_di" bpmnElement="Flow_Warehouse_Cancel">
+        <di:waypoint x="1155" y="213"/>
+        <di:waypoint x="1155" y="370"/>
+        <di:waypoint x="1220" y="370"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Warehouse_Pack_di" bpmnElement="Flow_Warehouse_Pack">
+        <di:waypoint x="1180" y="188"/>
+        <di:waypoint x="1250" y="188"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Pack_HandoffTask_di" bpmnElement="Flow_Pack_HandoffTask">
+        <di:waypoint x="1390" y="188"/>
+        <di:waypoint x="1460" y="188"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_HandoffTask_CancelGateway_di" bpmnElement="Flow_HandoffTask_CancelGateway">
+        <di:waypoint x="1610" y="188"/>
+        <di:waypoint x="1680" y="188"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Handoff_Cancel_di" bpmnElement="Flow_Handoff_Cancel">
+        <di:waypoint x="1705" y="213"/>
+        <di:waypoint x="1705" y="370"/>
+        <di:waypoint x="1360" y="370"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Handoff_Delivery_di" bpmnElement="Flow_Handoff_Delivery">
+        <di:waypoint x="1730" y="188"/>
+        <di:waypoint x="1800" y="188"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Handoff_DeliveredTask_di" bpmnElement="Flow_Handoff_DeliveredTask">
+        <di:waypoint x="1950" y="188"/>
+        <di:waypoint x="2020" y="188"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_DeliveredTask_Deliver_di" bpmnElement="Flow_DeliveredTask_Deliver">
+        <di:waypoint x="2170" y="188"/>
+        <di:waypoint x="2240" y="188"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Deliver_End_di" bpmnElement="Flow_Deliver_End">
+        <di:waypoint x="2390" y="188"/>
+        <di:waypoint x="2470" y="188"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Cancel_End_di" bpmnElement="Flow_Cancel_End">
+        <di:waypoint x="1360" y="370"/>
+        <di:waypoint x="1470" y="370"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
