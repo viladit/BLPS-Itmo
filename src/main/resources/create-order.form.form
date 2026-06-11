@@ -1,0 +1,125 @@
+{
+  "components": [
+    {
+      "text": "### 📦 Оформление нового заказа\nЗаполните данные покупателя и товара ниже:",
+      "type": "text",
+      "id": "Field_header",
+      "layout": {
+        "row": "Row_1gfufvq"
+      }
+    },
+    {
+      "label": "Адрес доставки",
+      "type": "textfield",
+      "id": "Field_deliveryAddress",
+      "key": "deliveryAddress",
+      "validate": {
+        "required": true
+      },
+      "layout": {
+        "row": "Row_066zo3w",
+        "columns": 15
+      }
+    },
+    {
+      "label": "SKU (Артикул)",
+      "type": "textfield",
+      "id": "Field_sku",
+      "key": "sku",
+      "validate": {
+        "required": true
+      },
+      "layout": {
+        "row": "Row_1p4vzvk"
+      }
+    },
+    {
+      "label": "Название товара",
+      "type": "textfield",
+      "id": "Field_productName",
+      "key": "productName",
+      "validate": {
+        "required": true
+      },
+      "layout": {
+        "row": "Row_1rqs99o"
+      }
+    },
+    {
+      "label": "Количество",
+      "type": "number",
+      "id": "Field_quantity",
+      "key": "quantity",
+      "defaultValue": 1,
+      "validate": {
+        "required": true,
+        "min": 1
+      },
+      "layout": {
+        "row": "Row_1mw3zhl"
+      }
+    },
+    {
+      "label": "Цена за единицу (руб.)",
+      "type": "textfield",
+      "id": "Field_unitPrice",
+      "key": "unitPrice",
+      "defaultValue": "100.00",
+      "validate": {
+        "required": true
+      },
+      "layout": {
+        "row": "Row_17ge1jd"
+      }
+    },
+    {
+      "text": "#### ⚠️ Настройки для демонстрации распределенных транзакций (JTA)",
+      "type": "text",
+      "id": "Field_jta_header",
+      "layout": {
+        "row": "Row_1d6lymk"
+      }
+    },
+    {
+      "label": "Сломать запись уведомления (эмуляция ошибки)",
+      "type": "checkbox",
+      "id": "Field_failNotification",
+      "key": "failNotification",
+      "defaultValue": false,
+      "layout": {
+        "row": "Row_1b7kdb2"
+      }
+    },
+    {
+      "label": "Пауза перед уведомлением (сек.)",
+      "type": "number",
+      "id": "Field_notificationPauseSeconds",
+      "key": "notificationPauseSeconds",
+      "defaultValue": 0,
+      "layout": {
+        "row": "Row_02vcyg8"
+      }
+    },
+    {
+      "label": "Покупатель",
+      "type": "textfield",
+      "id": "Field_customerName",
+      "key": "customerName",
+      "validate": {
+        "required": true
+      },
+      "layout": {
+        "row": "Row_0e5gcok"
+      }
+    }
+  ],
+  "type": "default",
+  "id": "Form_CreateOrder",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20",
+  "exporter": {
+    "name": "Camunda Modeler",
+    "version": "5.47.0"
+  },
+  "schemaVersion": 19
+}
